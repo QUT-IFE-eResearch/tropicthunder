@@ -1,0 +1,31 @@
+<plugin name='tropic-thunder' version='0.1' grailsVersion='2.1.0 &gt; *'>
+  <author>Your name</author>
+  <title>Tropic Thunder Plugin</title>
+  <description>Brief summary/description of the plugin.
+</description>
+  <documentation>http://grails.org/plugin/tropic-thunder</documentation>
+  <type>TropicThunderGrailsPlugin</type>
+  <resources>
+    <resource>edu.qut.acoustics.domain.Project</resource>
+  </resources>
+  <repositories>
+    <repository name='grailsCentral' url='http://grails.org/plugins' />
+    <repository name='http://repo.grails.org/grails/core' url='http://repo.grails.org/grails/core/' />
+    <repository name='mavenCentral' url='http://repo1.maven.org/maven2/' />
+  </repositories>
+  <dependencies />
+  <plugins>
+    <compile>
+      <plugin group='org.grails.plugins' name='cache' version='1.0.0' />
+    </compile>
+    <runtime>
+      <plugin group='org.grails.plugins' name='jquery' version='1.7.2' />
+      <plugin group='org.grails.plugins' name='resources' version='1.1.6' />
+    </runtime>
+    <build>
+      <plugin group='org.grails.plugins' name='tomcat' version='2.1.0' />
+    </build>
+  </plugins>
+  <runtimePluginRequirements />
+  <behavior />
+</plugin>
