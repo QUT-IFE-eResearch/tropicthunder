@@ -1,4 +1,4 @@
-package edu.qut.acoustics.domain
+package edu.qut.acoustics.tropicthunder.domain
 
 
 
@@ -8,8 +8,8 @@ import org.junit.*
 /**
  * See the API for {@link grails.test.mixin.domain.DomainClassUnitTestMixin} for usage instructions
  */
-@TestFor(Project)
-class ProjectTests {
+@TestFor(Site)
+class SiteTests {
 
     void testSomething() {
        fail "Implement me"

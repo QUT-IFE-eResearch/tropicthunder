@@ -4,18 +4,18 @@ class TropicThunderGrailsPlugin {
     // the version or versions of Grails the plugin is designed for
     def grailsVersion = "2.1 > *"
     // the other plugins this plugin depends on
-    def dependsOn = [:]
+    def dependsOn = [mongodb:"1.0.0.GA", rest:"0.7"]
     // resources that are excluded from plugin packaging
     def pluginExcludes = [
         "grails-app/views/error.gsp"
     ]
 
     // TODO Fill in these fields
-    def title = "Tropic Thunder Plugin" // Headline display name of the plugin
+    def title = "TropicThunder Plugin" // Headline display name of the plugin
     def author = "Shilo Banihit"
     def authorEmail = "shiloworks@gmail.com"
     def description = '''\
-Tropic Thunder is a portal platform to provide users with the ability to access, annotate and analyse bio-acoustic recordings.
+TropicThunder is a portal platform to provide users with the ability to access, annotate and analyse bio-acoustic recordings.
 '''
 
     // URL to the plugin's documentation
@@ -38,12 +38,17 @@ Tropic Thunder is a portal platform to provide users with the ability to access,
     // Online location of the plugin's browseable source code.
 //    def scm = [ url: "http://svn.codehaus.org/grails-plugins/" ]
 
+    // services
+    def sysEventService
+    def databaseService
+    
     def doWithWebDescriptor = { xml ->
         // TODO Implement additions to web.xml (optional), this event occurs before
     }
 
     def doWithSpring = {
-        // TODO Implement runtime spring config (optional)
+        // Implement runtime spring config (optional)
+        log.debug "TropicThunder configuring Spring runtime..."
     }
 
     def doWithDynamicMethods = { ctx ->
@@ -51,7 +56,10 @@ Tropic Thunder is a portal platform to provide users with the ability to access,
     }
 
     def doWithApplicationContext = { applicationContext ->
-        // TODO Implement post initialization spring config (optional)
+        // Implement post initialization spring config (optional)
+        log.debug "TropicThunder calling sysEventService..."
+        sysEventService = applicationContext.getBean("sysEventService")
+        sysEventService.fromTTDoWithApplicationContext(applicationContext)
     }
 
     def onChange = { event ->
@@ -67,5 +75,6 @@ Tropic Thunder is a portal platform to provide users with the ability to access,
 
     def onShutdown = { event ->
         // TODO Implement code that is executed when the application shuts down (optional)
+        sysEventService.fromTTOnShutdown(event)
     }
 }

@@ -1,4 +1,4 @@
-package edu.qut.acoustics.domain
+package edu.qut.acoustics.tropicthunder.domain
 
 import org.bson.types.ObjectId
 
@@ -20,8 +20,9 @@ class Project {
     List<String> siteNames
     
     static mapping = {
-        name index:true        
+        name index:true    
     }    
+    
     static constraints = {
     }
 }
