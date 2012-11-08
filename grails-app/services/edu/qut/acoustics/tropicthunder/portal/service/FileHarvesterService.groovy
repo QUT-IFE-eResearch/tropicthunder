@@ -34,8 +34,8 @@ class FileHarvesterService {
        
     def init() {                
         harvestDirStr = configService.config.settings.harvester.path
-        checkIntervalSleep = configService.config.settings.harvester.checkIntervalSecs * 1000
-        ageCheckMillis = configService.config.settings.harvester.ageSecsThreshold * 1000
+        checkIntervalSleep = configService.config.settings.harvester.checkInterval 
+        ageCheckMillis = configService.config.settings.harvester.ageThreshold 
         fileExts = configService.config.settings.harvester.extensions
         soxPath = configService.config.settings.harvester.sox
         dateTimeFormat = configService.config.settings.harvester.dateTimeFormat

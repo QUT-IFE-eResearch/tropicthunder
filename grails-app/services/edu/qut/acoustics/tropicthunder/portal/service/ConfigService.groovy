@@ -9,6 +9,8 @@ package edu.qut.acoustics.tropicthunder.portal.service
 class ConfigService {
 
     static transactional = false
+    static dtForever = Date.parse("MMddyyyy", "12319999")
+    static configSrc = "Seeded-ConfigService"
     
     def grailsApplication
     def dbService
@@ -17,10 +19,8 @@ class ConfigService {
     def repository    
     def harvester
     def fascinator    
-    def mongo
-        
-    def dtForever = Date.parse("MMddyyyy", "12319999")
-    def configSrc = "Seeded-ConfigService"
+    def mongo            
+    
     
     def init() {
         readBaseConfig()

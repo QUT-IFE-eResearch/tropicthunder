@@ -18,9 +18,12 @@ class Project {
     String owner
     String contact    
     List<String> siteNames
+    // ui specific
+    List mapLocation
     
     static mapping = {
         name index:true    
+        mapLocation geoIndex:true
     }    
     
     static constraints = {

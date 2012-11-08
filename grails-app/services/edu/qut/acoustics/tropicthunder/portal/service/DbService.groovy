@@ -67,6 +67,10 @@ class DbService {
         return Recording.findAllByRepoStat(configService.config.settings.repository.statQueued)        
     }
     
+    def getPushed() {
+        return Recording.findAllByRepoStat(configService.config.settings.repository.statPushed)
+    }
+    
     def saveSite(siteName, recording) {        
         colSites.findAndModify([name:siteName] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, ['\$set':[name:(siteName)],'$addToSet':[recordings:(recording)] ] as BasicDBObject, true, true)
     }

@@ -8,7 +8,7 @@ class Recording {
     // metadata specific
     Date startDt
     Date endDt
-    float durationSecs    
+    double durationSecs    
     String encFormat
     String sampleRate
     String channels
@@ -33,5 +33,5 @@ class Recording {
     }
     
     static constraints = {
-    }
+    }        
 }

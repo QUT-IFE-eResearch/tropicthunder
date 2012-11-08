@@ -6,12 +6,22 @@
   <documentation>http://grails.org/plugin/tropic-thunder</documentation>
   <type>TropicThunderGrailsPlugin</type>
   <resources>
-    <resource>edu.qut.acoustics.domain.Project</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.ConfigPortal</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.Project</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.Recording</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.Sensor</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.Site</resource>
+    <resource>edu.qut.acoustics.tropicthunder.portal.service.ConfigService</resource>
+    <resource>edu.qut.acoustics.tropicthunder.portal.service.DbService</resource>
+    <resource>edu.qut.acoustics.tropicthunder.portal.service.FileHarvesterService</resource>
+    <resource>edu.qut.acoustics.tropicthunder.portal.service.RepositoryService</resource>
+    <resource>edu.qut.acoustics.tropicthunder.portal.service.SysEventService</resource>
   </resources>
   <repositories>
     <repository name='grailsCentral' url='http://grails.org/plugins' />
     <repository name='http://repo.grails.org/grails/core' url='http://repo.grails.org/grails/core/' />
     <repository name='mavenCentral' url='http://repo1.maven.org/maven2/' />
+    <repository name='Codehaus' url='http://repository.codehaus.org/' />
   </repositories>
   <dependencies />
   <plugins>
@@ -19,6 +29,8 @@
       <plugin group='org.grails.plugins' name='cache' version='1.0.0' />
     </compile>
     <runtime>
+      <plugin group='org.grails.plugins' name='rest' version='0.7' />
+      <plugin group='org.grails.plugins' name='mongodb' version='1.0.0.GA' />
       <plugin group='org.grails.plugins' name='jquery' version='1.7.2' />
       <plugin group='org.grails.plugins' name='resources' version='1.1.6' />
     </runtime>
