@@ -6,8 +6,11 @@
   <documentation>http://grails.org/plugin/tropic-thunder</documentation>
   <type>TropicThunderGrailsPlugin</type>
   <resources>
+    <resource>edu.qut.acoustics.tropicthunder.controller.ProjectController</resource>
     <resource>edu.qut.acoustics.tropicthunder.domain.ConfigPortal</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.HarvestStatus</resource>
     <resource>edu.qut.acoustics.tropicthunder.domain.Project</resource>
+    <resource>edu.qut.acoustics.tropicthunder.domain.ProjectStats</resource>
     <resource>edu.qut.acoustics.tropicthunder.domain.Recording</resource>
     <resource>edu.qut.acoustics.tropicthunder.domain.Sensor</resource>
     <resource>edu.qut.acoustics.tropicthunder.domain.Site</resource>
@@ -29,10 +32,11 @@
       <plugin group='org.grails.plugins' name='cache' version='1.0.0' />
     </compile>
     <runtime>
-      <plugin group='org.grails.plugins' name='rest' version='0.7' />
-      <plugin group='org.grails.plugins' name='mongodb' version='1.0.0.GA' />
+      <plugin group='org.grails.plugins' name='executor' version='0.3' />
       <plugin group='org.grails.plugins' name='jquery' version='1.7.2' />
+      <plugin group='org.grails.plugins' name='rest' version='0.7' />
       <plugin group='org.grails.plugins' name='resources' version='1.1.6' />
+      <plugin group='org.grails.plugins' name='mongodb' version='1.0.0.GA' />
     </runtime>
     <build>
       <plugin group='org.grails.plugins' name='tomcat' version='2.1.0' />

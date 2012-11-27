@@ -31,9 +31,11 @@ class RepositoryService {
     def renderPendingWait
     def renderPendingMaxCheck
     def maxRender
-
+    def pathHeartbeat
+    
     def secToken
     def secTokenCreateDt
+    def repoAlive
     
     def init() {
         urlRepo = configService.config.settings.fascinator.urlRepo
@@ -49,6 +51,8 @@ class RepositoryService {
         renderPendingWait = configService.config.settings.fascinator.renderPendingWait
         renderPendingMaxCheck = configService.config.settings.fascinator.renderPendingMaxCheck
         maxRender = configService.config.settings.fascinator.maxRender
+        pathHeartbeat = configService.config.settings.fascinator.pathHeartbeat
+        getHeartbeatStat()
     }
     
     /**
@@ -57,13 +61,10 @@ class RepositoryService {
     * Returns the number of records queued.
     */
     def push() {        
-        //createSecToken(Date.parse(configService.config.settings.fascinator.timestampFormat,"20121017152800"))
-        validateSecToken()
-        log.debug "Using sectoken:$secToken"
         def ctr = 0
         def pendingRenderCtr = 0
         dbService.getQueued().each {  
-            // check if we've hit the render the max...
+            // check if we've hit the limit...
             if (pendingRenderCtr == maxRender) {
                 log.debug "Waiting for pending ${maxRender} harvests to complete."
                 pull(maxRender, maxRender * renderPendingMaxCheck)                
@@ -73,9 +74,11 @@ class RepositoryService {
             // prepare the meta file            
             def metafile = new File(it.fullPath + metaFileExt)
             def recording = it
+            log.debug "Processing: ${recording.fileName}"
             // build the metadata file
             def strWriter = new StringWriter()
             def jsonBuilder = new StreamingJsonBuilder(strWriter)
+            log.debug "Building JSON..."
             jsonBuilder.metadata {
                 fileName  recording.fileName
                 filePath  recording.filePath
@@ -92,18 +95,41 @@ class RepositoryService {
                 encFormat  recording.encFormat
                 durationSecs  recording.durationSecs                    
             }
-            
+            log.debug "Pretty printing JSON to: ${it.fullPath + metaFileExt}"
             metafile.withWriter('UTF-8') {writer ->
                 writer.write(JsonOutput.prettyPrint(strWriter.toString()))
             }           
-            // push to the repository    
-            getJsonResult(urlRepo, urlPathHarvest, [filepath:recording.fullPath,reharvest:"false",owner:"admin", token:secToken], null)
-            
-            // save the status            
-            recording.setRepoStat(repoStatPushed)                        
-            dbService.saveRecording(recording)            
-            ctr++
-            pendingRenderCtr++
+            log.debug "Pushing record to repository..."
+            // push to the repository   
+            validateSecToken()
+            log.debug "Using sectoken:$secToken"
+            def jsonRes = getJsonResult(urlRepo, urlPathHarvest, [filepath:recording.fullPath,reharvest:"false",owner:"admin", token:secToken], null)
+            log.debug "Analysing response..."
+            if (jsonRes.status == "success") {
+                log.debug "Successfully pushed to repository, updating recording status..."
+                // save the status          
+                try {
+                    recording.setStorageId("")
+                    recording.setRepoStat(repoStatPushed)              
+                    log.debug "Flushing record.."
+                    if (!dbService.saveRecording(recording)) {
+                        recording.errors.each {
+                            log.error "Error saving $recording.fileName -> ${it}"
+                        }
+                    } else {
+                        log.debug "Updated record status to 'pushed'..."
+                    }
+                } catch (Exception e) {
+                    log.error e
+                }
+                // add to the harvest status 
+                log.debug "Adding to harvest status list..."
+                dbService.addRecHarvestStatus(recording.fileName)
+                ctr++
+                pendingRenderCtr++
+            } else {
+                log.error "Error encountered while pushing to the repository: '$jsonRes.errormsg', for recording: $jsonRes.path"
+            }
         }
         if (pendingRenderCtr > 0) {
             log.debug "Records have been submitted for harvesting, waiting for completion."
@@ -121,43 +147,71 @@ class RepositoryService {
         def checkCtr = 0
         def statusMap = [harvestStat:null, renderPending:true]
         while (renderedCtr < numRecs && checkCtr < numChecks ) {
+            sleep(renderPendingWait)            
             dbService.getPushed().each {
                 statusMap.harvestStat = null
                 statusMap.renderPending = true
                 def recording = it
                 getRenderPendingValue(recording.fileName, statusMap)
-                if (statusMap.harvestStat != null && statusMap.renderPending == false) {
-                    // save the status                    
+                if (statusMap.harvestStat != null && statusMap.renderPending == false) {                    
+                    // save the status and storage id
+                    log.debug "Changing recording status to live: ${recording.fileName}"
+                    recording.setStorageId(statusMap.storageId)
                     recording.setRepoStat(repoStatLive)                                                    
-                    dbService.saveRecording(recording)
+                    if (!dbService.saveRecording(recording)) {
+                        recording.errors.each {
+                            log.error "Error updating:${recording.fileName} --> ${it}"
+                        }
+                    }
                     renderedCtr++
+                    // remove from harvest status list...
+                    dbService.removeRecHarvestStatus(recording.fileName)
+                    log.debug "ALL DONE: ${recording.fileName}"
                 }                
             }
             checkCtr++
-            log.debug "pull() wait number: ${checkCtr}, maxWait: ${numChecks}"
-            // sleeping after checking all recs...
-            sleep(renderPendingWait)            
+            log.debug "pull() wait number: ${checkCtr}, maxWait: ${numChecks}"                        
         }
+    }
+    
+    def getHeartbeatStat() {
+        log.debug "Checking repo life..."
+        def heartbeat = getJsonResult(urlRepo, pathHeartbeat, null, null)
+        repoAlive = heartbeat != null && heartbeat.status == "ok"
+        if (repoAlive) {
+            log.info "Repo is alive and kicking!"
+        } else {
+            log.error "Repo is DOWN : ${urlRepo}${pathHeartbeat}"
+        }
+        return repoAlive
+    }
+    
+    def isRepoAlive() {
+        return repoAlive
     }
     
     def getRenderPendingValue(fileName, statusMap) {
         def renderPending = true
         def harvestStat = getJsonResult(urlRepo, urlPathSolr, [q:"(file_name:$fileName AND item_type:object)", wt:"json"], null)
-        if (harvestStat.response.docs[0] != null) {
+        def storageId = ""
+        if (harvestStat.response != null && harvestStat.response.numFound > 0 && harvestStat.response.docs[0] != null) {
             renderPending = Boolean.parseBoolean(harvestStat.response.docs[0]['render-pending'][0])
+            storageId = harvestStat.response.docs[0]["storage_id"]
             log.debug "Render-pending for $fileName is: $renderPending"
+            log.debug "Storage ID for $fileName is: $storageId"
         } else {
             log.debug "Render-pending not available for $fileName"
         }
         statusMap.harvestStat = harvestStat
         statusMap.renderPending = renderPending
+        statusMap.storageId = storageId
     }
     
     /**
      * Get JSON document from Fascinator URL. 
      * 
      */
-    def getJsonResult(uri, path, query, jsonClos) {    
+    def getJsonResult(uri, path, query, jsonClos) {
         def retval = null
         try {
             withHttp(uri:uri) {
@@ -179,9 +233,12 @@ class RepositoryService {
      * Check the validity of the token used for Fascinator communication
      * 
     */
-    def validateSecToken() {        
-        if (secTokenCreateDt == null || (secTokenCreateDt.getTime() + tokenExpiry > System.currentTimeMillis())) {
+    def validateSecToken() {       
+        log.debug "Validating security token..."
+        if (secTokenCreateDt == null || (System.currentTimeMillis() >= secTokenCreateDt.getTime() + tokenExpiry )) {
             createSecToken(new Date())
+        } else {
+            log.debug "Using previously created security token..."
         }
     }
     
@@ -189,6 +246,7 @@ class RepositoryService {
      * Create the security token for Fascinator communication
     */
     def createSecToken(tokenDt) {
+        log.debug "Creating new security token..."
         secTokenCreateDt = tokenDt
         def timestamp = secTokenCreateDt.format(configService.config.settings.fascinator.timestampFormat)
         def userTsPair = "${configService.config.settings.fascinator.username}:${timestamp}"

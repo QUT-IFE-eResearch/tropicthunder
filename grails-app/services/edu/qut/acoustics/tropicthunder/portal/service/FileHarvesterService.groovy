@@ -1,5 +1,6 @@
 package edu.qut.acoustics.tropicthunder.portal.service
 
+import edu.qut.acoustics.tropicthunder.domain.*
 import groovy.io.*
 import groovy.util.*
 import java.io.*
@@ -43,35 +44,42 @@ class FileHarvesterService {
         repoStatQueued = configService.config.settings.repository.statQueued
         soxFields = configService.config.settings.harvester.sox_fields
         harvestDir = new File(harvestDirStr)
-        log.debug "Using Harvest Directory: $harvestDirStr"        
+        log.debug "Using Harvest Directory: $harvestDirStr"     
     }
     
     def exec() {
         walker(harvestDir)
     }
     
-    def walker(curDir) {
-        def now = System.currentTimeMillis()
+    def walker(curDir) {        
         curDir.eachFileMatch FileType.FILES, { FilenameUtils.isExtension(it.toLowerCase(), fileExts) }, {
-            log.debug "Found file:"  + it.path
-            // check if the file path exists in the DB and get last modified date
-            def dbRec = dbService.getDBRecordingByFullPath(it.path)
-            if (dbRec != null) {
-                log.debug "DB Last Modified:" + dbRec.lastModifiedDate
-            }
-            log.debug "Local Last modified:" + it.lastModified()
-            def hasAged = now - it.lastModified() >= ageCheckMillis
-            if ((dbRec == null && hasAged ) || (dbRec != null && it.lastModified() > dbRec.lastModifiedDate && hasAged) ) { 
-                processRecording(it.path, it.lastModified())
-            } else {
-                log.debug "Ignoring: " + it.path
-            }
+            def curPath = it.path
+            log.debug "Found file:"  + curPath
+            processRecording(it)
         }
         curDir.eachFile(FileType.DIRECTORIES) {
            walker(it)
         }
     }        
         
+    def processRecording(recording) {
+        log.debug "Processing a file:$recording.path"
+        def now = System.currentTimeMillis()
+        // check if the file path exists in the DB and get last modified date
+        def dbRec = dbService.getDBRecordingByFullPath(recording.path)
+        if (dbRec != null) {
+            log.debug "DB Last Modified:" + dbRec.lastModifiedDate
+        }
+        log.debug "Local Last modified:" + recording.lastModified()
+        def hasAged = now - recording.lastModified() >= ageCheckMillis
+        if ((dbRec == null && hasAged ) || (dbRec != null && recording.lastModified() > dbRec.lastModifiedDate && hasAged) ) { 
+            processRecording(recording.path, recording.lastModified())
+            return true
+        } else {
+            log.debug "Ignoring recently modified: " + recording.path
+        }
+        return false
+    }
     // Based on 
     // https://isr-eresearch.atlassian.net/browse/ACOUSTICS-27
     // https://isr-eresearch.atlassian.net/wiki/display/fascinator/Metadata+Source+and+Derivation+Rules
@@ -84,7 +92,7 @@ class FileHarvesterService {
         def unixpath = FilenameUtils.separatorsToUnix(filepath)
         def fname = FilenameUtils.getName(unixpath)
         def fpath = FilenameUtils.getFullPath(unixpath)
-        log.debug "processRecording->FilePath:" + fpath
+        log.debug "processRecording->FilePath: ${fpath}" 
         // break up path
         def strtok = new StringTokenizer(fpath.replaceAll(harvestDirStr, ""), "/")
         log.debug "processRecording->Number of tokens:" + strtok.countTokens()
@@ -115,8 +123,8 @@ class FileHarvesterService {
         def soxdetails = [:]
         def soxdump = [:]
         
-        soxParse(soxPath +  " --info " + filepath, soxdump)
-        soxParse(soxPath +  " --info -D " + filepath, soxdump, "Length (seconds)")        
+        soxParse("${soxPath} --info ${filepath}", soxdump)
+        soxParse("${soxPath} --info -D ${filepath}", soxdump, "Length (seconds)")        
         // get what we're interested in...
         soxFields.each {
             if (soxdump.containsKey(it.label)) {
@@ -139,25 +147,63 @@ class FileHarvesterService {
                 lastModifiedDate:(lastModifiedDate), 
                 deviceId:(deviceId),
                 siteName:(siteName),
+                projectName:(projectName),
                 compression:(FilenameUtils.getExtension(fname)),
                 startDt: startDt,
                 endDt: endDt
             ]         
         // save site
+        log.debug "Saving site...${siteName}"
         dbService.saveSite(siteName, recording) 
         // save project        
+        log.debug "Saving project...${projectName}"
         dbService.saveProject(projectName, siteName)
         // save sensor
+        log.debug "Saving sensor...${deviceId}"
         dbService.saveSensor(deviceId)
         // save recording
-        recording.putAll(soxdetails)        
-        dbService.saveRecording(unixpath, recording)
+        log.debug "Saving recording...${recording.fileName}"
+//        recording.putAll(soxdetails)        
+//        dbService.saveRecording(unixpath, recording)
+        
+        def dbRec = new Recording()
+        try {
+            dbRec.fileName = fname
+            dbRec.filePath=fpath
+            dbRec.fullPath=unixpath
+            dbRec.repoId=repoId 
+            dbRec.repoStat=repoStatQueued 
+            dbRec.lastModifiedDate=lastModifiedDate 
+            dbRec.deviceId=deviceId
+            dbRec.siteName=siteName
+            dbRec.projectName=projectName
+            dbRec.compression=FilenameUtils.getExtension(fname)
+            dbRec.startDt=startDt
+            dbRec.endDt=endDt
+            dbRec.channels=soxdetails.channels
+            dbRec.sampleRate=soxdetails.sampleRate
+            dbRec.encFormat=soxdetails.encFormat
+            dbRec.durationSecs=Double.parseDouble(soxdetails.durationSecs)
+        } catch (Exception e) {
+            log.error "Exception!"
+            log.error e
+        }
+        log.debug "Flushing recording..."
+        if (!dbRec.save(flush:true)) {
+            log.error "Error saving recording..."
+            dbRec.errors.each {
+                log.error "Error: ${it}"
+            }
+        }
+        log.debug "processRecording->DONE! FilePath: ${unixpath}"
     }
     
     def soxParse(soxcmd, soxdump, maplabel=null) {
+        log.debug "Soxcmd: ${soxcmd}"
         Process p_info = soxcmd.execute() 
         p_info.in.eachLine { line ->
             line = line.trim()
+            log.debug "sox line:${line}"
             if (maplabel == null) {
                 if (line.indexOf(":") > 0) {
                     def label = line.substring(0, line.indexOf(":")).trim()

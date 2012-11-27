@@ -22,6 +22,8 @@ class Recording {
     long lastModifiedDate
     String deviceId
     String siteName
+    String projectName
+    String storageId
     
     static mapping = {
         repoId index:true
@@ -30,8 +32,25 @@ class Recording {
         fullPath index:true
         deviceId index:true
         siteName index:true
+        projectName index:true
     }
     
     static constraints = {
+        startDt              nullable:true
+        endDt                nullable:true
+        durationSecs         nullable:true
+        encFormat            nullable:true
+        sampleRate           nullable:true
+        channels             nullable:true
+        compression          nullable:true
+        fileName             nullable:true
+        filePath             nullable:true
+        repoId               nullable:true
+        repoStat             nullable:true
+        lastModifiedDate     nullable:true
+        deviceId             nullable:true
+        siteName             nullable:true
+        projectName          nullable:true
+        storageId            nullable:true
     }        
 }

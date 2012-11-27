@@ -10,11 +10,11 @@ import org.bson.types.ObjectId
 class Site {
     ObjectId id    
     String name
-    List location
+//    List location
     
     static mapping = {
         name index:true        
-        location geoIndex:true
+//        location geoIndex:true
     }  
 }
 

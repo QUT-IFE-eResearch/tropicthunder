@@ -14,25 +14,12 @@ import org.apache.commons.io.*
 
 class DbService {
     static transactional = false
+    static outCol = "projectStats"
         
     def mongo
     def configService
-
-    def colConfig
-    def colRecordings
-    def colProjects
-    def colSensors
-    def colSites
     
-    def init() {
-        
-        colRecordings = Recording.collection
-        colProjects = Project.collection
-        colSensors = Sensor.collection
-        colSites = Site.collection
-        colConfig = ConfigPortal.collection
-        colProjects = Project.collection
-        
+    def init() {  
     }
     
     /**
@@ -52,11 +39,11 @@ class DbService {
     }
             
     def getConfig(configDate, endDate) {   
-        return colConfig.findOne([startEffectiveDt : ["\$lte": configDate ], endEffectiveDt:["\$lte":endDate]] as BasicDBObject)
+        return ConfigPortal.collection.findOne([startEffectiveDt : ["\$lte": configDate ], endEffectiveDt:["\$lte":endDate]] as BasicDBObject)
     }
     
     def insertConfig(startDate, dtForever, configSrc, settings) {
-        colConfig.insert([startEffectiveDt:(startDate), endEffectiveDt:(dtForever), source:(configSrc), settings:(settings)] as BasicDBObject)
+        ConfigPortal.collection.insert([startEffectiveDt:(startDate), endEffectiveDt:(dtForever), source:(configSrc), settings:(settings)] as BasicDBObject)
     }
                      
     def getDBRecordingByFullPath(filepath) {        
@@ -72,22 +59,109 @@ class DbService {
     }
     
     def saveSite(siteName, recording) {        
-        colSites.findAndModify([name:siteName] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, ['\$set':[name:(siteName)],'$addToSet':[recordings:(recording)] ] as BasicDBObject, true, true)
+//        Site.collection.findAndModify([name:siteName] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, ['\$set':[name:(siteName)],'$addToSet':[recordings:(recording)] ] as BasicDBObject, true, true)
+        def site = Site.findByName(siteName)
+        if (site == null) {
+            log.debug "Inserting new site..."
+            site = new Site(name:siteName)
+        } else {
+            log.debug "Existing site..."
+        }
+        log.debug "Flushing site..."
+        if (!site.save(flush:true)) {
+            site.errors.each {
+                log.error "Error saving site: ${it}" 
+            }
+        } else {
+            log.info "Saved site:${siteName}"
+        }
     }
     
     def saveProject(projectName, siteName) {        
-        colProjects.findAndModify([name:(projectName)] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, ['\$set':[name:(projectName)],'\$addToSet':[siteNames:(siteName)]] as BasicDBObject, true, true)       
+        Project.collection.findAndModify([name:(projectName)] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, ['\$set':[name:(projectName)],'\$addToSet':[siteNames:(siteName)]] as BasicDBObject, true, true)       
     }
     
     def saveSensor(sensorId) {        
-        colSensors.findAndModify([deviceId:sensorId] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, [deviceId:(sensorId)] as BasicDBObject, true, true )
+//        Sensor.collection.findAndModify([deviceId:sensorId] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, [deviceId:(sensorId)] as BasicDBObject, true, true )
+        def sensor = Sensor.findByDeviceId(sensorId)
+        if (sensor == null) {
+            log.debug "Creating new sensor...${sensorId}"
+            sensor = new Sensor(deviceId:sensorId)
+            if (!sensor.save(flush:true)) {
+                log.error "Error saving sensor..."
+                sensor.errors.each {
+                    log.error "Errors: ${it}"
+                }
+            } else {
+                log.info "Saved sensor:${sensorId}"
+            }
+        } 
     }
     
     def saveRecording(unixpath, recording) {        
-        colRecordings.findAndModify([fullPath:unixpath] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, recording as BasicDBObject, true, true)                                
+        Recording.collection.findAndModify([fullPath:unixpath] as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, recording as BasicDBObject, true, true)                                
     }
     
     def saveRecording(recording) {
-        recording.save(flush:true, failOnError:true)
+        return recording.save(flush:true)
+    }
+    
+    def updateStats() {        
+        def reduceFunc = "function(key, vals) {var reduced={count:0}; vals.forEach(function(v){reduced.count+=v.count;}); return reduced;}"        
+        def mr = null
+        mr = Recording.collection.mapReduce("function(){emit({projectName:this.projectName,year:this.startDt.getFullYear()}, {count:1});}", reduceFunc, outCol , MapReduceCommand.OutputType.MERGE, [repoStat : (configService.config.settings.repository.statLive)] as BasicDBObject )
+        log.debug ("Updating year Stats, raw status: " + mr.getRaw())
+        mr = Recording.collection.mapReduce("function(){emit({projectName:this.projectName,month:this.startDt.getMonth()}, {count:1});}", reduceFunc, outCol, MapReduceCommand.OutputType.MERGE, [repoStat : (configService.config.settings.repository.statLive)] as BasicDBObject )
+        log.debug ("Updating monthly Stats, raw status: " + mr.getRaw())
+        mr = Recording.collection.mapReduce("function(){emit({projectName:this.projectName,date:this.startDt.getDay()}, {count:1});}", reduceFunc, outCol, MapReduceCommand.OutputType.MERGE, [repoStat : (configService.config.settings.repository.statLive)] as BasicDBObject )
+        log.debug ("Updating daily Stats, raw status: " + mr.getRaw())
+        mr = Recording.collection.mapReduce("function(){emit({projectName:this.projectName,hour:this.startDt.getHours()}, {count:1});}", reduceFunc, outCol, MapReduceCommand.OutputType.MERGE, [repoStat : (configService.config.settings.repository.statLive)] as BasicDBObject )
+        log.debug ("Updating hourly Stats, raw status: " + mr.getRaw())
+    }        
+    
+    def getProjStats(name) {
+        return ProjectStats.collection.find(["_id.projectName": (name)] as BasicDBObject)
+    }
+    
+    def clearStats() {
+        ProjectStats.collection.remove([] as BasicDBObject)
+    }
+    
+    def setToHarvesting() {
+        initHarvestStatus()
+        def query = [running:false]
+        def op = [running:true, startDt:new Date(), currentRecordings:[]]
+        return HarvestStatus.collection.findAndModify(query as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false,  op as BasicDBObject, true, true)
+    }
+    
+    def setToHarvestComplete() {
+        def query = [running:true]
+        def op = [running:false, endDt:new Date(), currentRecordings:[]]
+        return HarvestStatus.collection.findAndModify(query as BasicDBObject, [] as BasicDBObject, [sort:[priority:-1]] as BasicDBObject, false, op as BasicDBObject, true, true)
+    }
+    
+    def getHarvestStatus() {
+        initHarvestStatus()
+        return HarvestStatus.collection.findOne([running:true] as BasicDBObject)
+    }
+    
+    def initHarvestStatus() {
+        def hStat = HarvestStatus.collection.findOne([] as BasicDBObject)
+        if (hStat == null) {
+            HarvestStatus.collection.insert([running:false, startDt:new Date()])
+            log.info "Inserted new harvest status document."
+        }
+    }
+    
+    def addRecHarvestStatus(recName) {
+        def query = [running:true]
+        def op = ['\$addToSet':[currentRecordings:(recName)]]
+        return HarvestStatus.collection.update(query as BasicDBObject, op as BasicDBObject)
+    }
+    
+    def removeRecHarvestStatus(recName) {
+        def query = [running:true]
+        def op = ['\$pull':[currentRecordings:(recName)]]
+        return HarvestStatus.collection.update(query as BasicDBObject, op as BasicDBObject)
     }
 }

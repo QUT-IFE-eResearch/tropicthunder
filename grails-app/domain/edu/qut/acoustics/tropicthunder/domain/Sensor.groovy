@@ -40,5 +40,24 @@ class Sensor {
     }
     
     static constraints = {
+        deviceName nullable:true
+        manufacturer nullable:true
+        modelNumber nullable:true
+        micLeft nullable:true
+        micRight nullable:true
+        firmwareVersion nullable:true
+        calibration nullable:true
+        micGainLeft nullable:true
+        micGainRight nullable:true
+        micHpfLeft nullable:true
+        micHpfRight nullable:true
+        divRatio nullable:true
+        trigLeft nullable:true
+        trigRight nullable:true
+        trigWinLeft nullable:true
+        trigWinRight nullable:true
+        trigMaxLen nullable:true
+        calibStartDt nullable:true
+        calibEndDt nullable:true
     }
 }

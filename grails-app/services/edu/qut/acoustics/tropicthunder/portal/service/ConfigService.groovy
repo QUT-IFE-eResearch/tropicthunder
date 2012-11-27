@@ -34,7 +34,7 @@ class ConfigService {
             log.debug "Configuration not found on DB, syncing loaded config..."
             config = flushToDB(configDate)
         } else {
-            log.debug "Using configuration: " + config
+            log.debug "Using DB configuration: " + config
         }        
     }
     
