@@ -14,10 +14,10 @@ class Project {
     String name
     String title
     String description
-    List<String> participants
+    List participants
     String owner
     String contact    
-    List<String> siteNames
+    List siteNames
     // ui specific
     List mapLocation
     
@@ -27,5 +27,6 @@ class Project {
     }    
     
     static constraints = {
+        
     }
 }

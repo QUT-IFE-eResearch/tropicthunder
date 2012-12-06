@@ -146,31 +146,46 @@ class RepositoryService {
         def renderedCtr = 0
         def checkCtr = 0
         def statusMap = [harvestStat:null, renderPending:true]
-        while (renderedCtr < numRecs && checkCtr < numChecks ) {
-            sleep(renderPendingWait)            
-            dbService.getPushed().each {
-                statusMap.harvestStat = null
-                statusMap.renderPending = true
-                def recording = it
-                getRenderPendingValue(recording.fileName, statusMap)
-                if (statusMap.harvestStat != null && statusMap.renderPending == false) {                    
-                    // save the status and storage id
-                    log.debug "Changing recording status to live: ${recording.fileName}"
-                    recording.setStorageId(statusMap.storageId)
-                    recording.setRepoStat(repoStatLive)                                                    
-                    if (!dbService.saveRecording(recording)) {
-                        recording.errors.each {
-                            log.error "Error updating:${recording.fileName} --> ${it}"
+        def recording = null
+        try {
+            while (renderedCtr < numRecs && checkCtr < numChecks ) {
+                sleep(renderPendingWait)            
+                dbService.getPushed().each {
+                    statusMap.harvestStat = null
+                    statusMap.renderPending = true
+                    recording = it
+                    getRenderPendingValue(recording.fileName, statusMap)
+                    if (statusMap.harvestStat != null && statusMap.renderPending == false) {                    
+                        // save the status and storage id
+                        log.debug "Changing recording status to metadata: ${recording.fileName}"
+                        recording.setStorageId(statusMap.storageId)
+                        recording.setRepoStat(configService.config.settings.repository.statMetadata)                                                    
+                        if (!dbService.saveRecording(recording)) {
+                            recording.errors.each {
+                                log.error "Error updating:${recording.fileName} --> ${it}"
+                            }
                         }
-                    }
-                    renderedCtr++
-                    // remove from harvest status list...
-                    dbService.removeRecHarvestStatus(recording.fileName)
-                    log.debug "ALL DONE: ${recording.fileName}"
-                }                
+                        renderedCtr++
+                        // remove from harvest status list...
+                        dbService.removeRecHarvestStatus(recording.fileName)
+                        log.debug "ALL DONE: ${recording.fileName}"
+                    }                
+                }
+                checkCtr++
+                log.debug "pull() wait number: ${checkCtr}, maxWait: ${numChecks}"                        
             }
-            checkCtr++
-            log.debug "pull() wait number: ${checkCtr}, maxWait: ${numChecks}"                        
+        } catch (Exception e) {
+            // revert status from pushed to queued...
+            if (recording!=null) {
+                recording.setRepoStat(configService.config.settings.repository.statQueued)                                                    
+                if (!dbService.saveRecording(recording)) {
+                    recording.errors.each {
+                        log.error "Error updating:${recording.fileName} --> ${it}"
+                    }
+                }
+            }
+            // rethrow the exception
+            throw e
         }
     }
     
