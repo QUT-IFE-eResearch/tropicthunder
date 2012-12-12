@@ -27,15 +27,9 @@ class RecordingController {
                 def sortStr = queryStr.substring(sortIdx+sortHdr.size(), queryStr.lastIndexOf(")"))
                 def sortFld = sortStr.substring(1)
                 def orderFld = sortStr.substring(0,1).equals("+") ? "asc" : "desc"
-//                if (offsetFld != null && maxFld != null)
-//                    retVal = Recording.list(sort:sortFld, order:orderFld,max:maxFld, offset:offsetFld)
-//                else
-                    retVal = Recording.list(sort:sortFld, order:orderFld)
+                retVal = Recording.list(sort:sortFld, order:orderFld)
             } 
        } else {
-//           if (offsetFld != null && maxFld != null)
-//            retVal = Recording.list(max:maxFld, offset:offsetFld)
-//           else
             retVal = Recording.list()
        }
        

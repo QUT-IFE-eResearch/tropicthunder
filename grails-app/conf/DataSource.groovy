@@ -3,9 +3,9 @@ environments {
     development {        
         grails {
             mongo {
-                username = "tt_user"
-                password = "G3RRONIzQc"
-                databaseName = "tt_dev"
+                username = ""
+                password = ""
+                databaseName = ""
             }            
         }
         dataSource {

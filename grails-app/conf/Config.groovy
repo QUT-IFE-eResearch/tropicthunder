@@ -10,12 +10,12 @@ environments {
         }
         harvester {
             repoId = "tropic-thunder"            
-            path = "C:/Users/banihit/Work/Projects/temp/harvest/"
+            path = "<Path to Harvest Directory>"
             ageSecsThreshold = 60
             checkIntervalSecs = 60            
             extensions = ["wav", "mp3"]
             dateTimeFormat = "YYYYMMDDHHmmss"
-            sox = "C:/Users/banihit/Work/tools/sox-14-4-0/sox.exe"
+            sox = "<Path to Harvest sox.exe>"
             sox_fields = [ 
                 ["label":"Channels", "key":"channels"], 
                 ["label":"Sample Rate", "key":"sampleRate"], 
@@ -26,8 +26,8 @@ environments {
         fascinator {
             urlRepo = ""
             urlHarvest = ""
-            privateKey = "Secret1253232"
-            publicKey = "randomGibberish"
+            privateKey = "PrivateKey"
+            publicKey = "PublicKey"
             username = "admin"            
             expiry = "400"
         }
@@ -37,10 +37,6 @@ log4j = {
     // Example of changing the log pattern for the default console
     // appender:
     //
-    //appenders {
-    //    console name:'stdout', layout:pattern(conversionPattern: '%c{2} %m%n')
-    //}
-
     error  'org.codehaus.groovy.grails.web.servlet',  //  controllers
            'org.codehaus.groovy.grails.web.pages', //  GSP
            'org.codehaus.groovy.grails.web.sitemesh', //  layouts
